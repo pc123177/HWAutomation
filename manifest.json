@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "HackerWars Automator",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Manual-trigger automation helper for hackerwars.io",
   "permissions": ["activeTab", "scripting", "storage", "downloads", "alarms"],
   "host_permissions": ["https://hackerwars.io/*"],
@@ -15,7 +15,7 @@
   "content_scripts": [
     {
       "matches": ["https://hackerwars.io/*"],
-      "js": ["shared.js", "logs.js", "missions.js", "ddos.js", "research.js", "puzzle.js", "masshack.js", "collect.js", "repkill.js", "softwareGather.js", "popup.js", "overlay.js", "content.js"],
+      "js": ["shared.js", "logs.js", "missions.js", "infection2.js", "research.js", "puzzle.js", "masshack.js", "collect.js", "repkill.js", "softwareGather.js", "popup.js", "overlay.js", "content.js"],
       "run_at": "document_idle"
     }
   ],
