@@ -1,12 +1,12 @@
 <!doctype html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>HackerWars Automator</title>
+  <title>Automatizador HackerWars</title>
   <style>
-    /* 每条规则都限定在 #hwauto-card 之下（后代选择器，或卡片自己的 id/class）——这样当
-       overlay.js 把这份样式表以内容脚本形式注入到 hackerwars.io 页面时，才不会有裸露的
-       body{} 或 *{} 规则漏到卡片外面，把真正的游戏页面也一起改了样式。 */
+    /* Todas as regras ficam sob #hwauto-card (seletores descendentes ou id/class do cartão).
+       Assim, quando overlay.js injeta esta folha em hackerwars.io como content script,
+       regras body{} ou *{} não vazam para fora do cartão nem alteram a página real do jogo. */
     #hwauto-card, #hwauto-card * {
       box-sizing: border-box;
     }
@@ -291,61 +291,61 @@
 <body>
   <div id="hwauto-card">
     <div id="hwauto-header">
-      <span id="hwauto-title">HackerWars Automator</span>
+      <span id="hwauto-title">Automatizador HackerWars</span>
       <div id="hwauto-header-actions">
-        <button id="hwauto-hide-toggle" class="hwauto-icon-btn" aria-label="Hide overlay">&#10005;</button>
-        <button id="hwauto-collapse-toggle" class="hwauto-icon-btn" aria-label="Collapse">&#9660;</button>
+        <button id="hwauto-hide-toggle" class="hwauto-icon-btn" aria-label="Ocultar painel">&#10005;</button>
+        <button id="hwauto-collapse-toggle" class="hwauto-icon-btn" aria-label="Recolher">&#9660;</button>
       </div>
     </div>
 
     <div id="hwauto-content">
       <div id="mainMenu">
-        <button class="menu-item" data-group="submenu-tools">Tools 工具</button>
-        <button class="menu-item" data-group="submenu-logs">Logs 日志</button>
-        <button class="menu-item" data-group="submenu-missions">Missions 任务</button>
-        <button class="menu-item" id="setupBtn">Setup 设置</button>
-        <button id="stopAllBtn">Stop All 全部停止</button>
-        <div id="runningScriptsStatus">无正在运行的任务</div>
+        <button class="menu-item" data-group="submenu-tools">Ferramentas</button>
+        <button class="menu-item" data-group="submenu-logs">Logs</button>
+        <button class="menu-item" data-group="submenu-missions">Missões</button>
+        <button class="menu-item" id="setupBtn">Configuração</button>
+        <button id="stopAllBtn">Parar tudo</button>
+        <div id="runningScriptsStatus">Nenhuma tarefa em execução</div>
       </div>
 
       <div class="submenu" id="submenu-tools">
         <div class="panel-header">
           <button class="back-btn" data-back-to-main>&larr;</button>
-          <span class="panel-title">Tools 工具</span>
+          <span class="panel-title">Ferramentas</span>
         </div>
-        <button class="menu-item" data-target="panel-research">Research 研究任务</button>
-        <button class="menu-item" data-target="panel-collect">Collect 收款任务</button>
-        <button class="menu-item" data-target="panel-puzzle">Puzzle 解谜任务</button>
-        <button class="menu-item" data-target="panel-masshack">Mass Hack 批量入侵</button>
-        <button class="menu-item" data-target="panel-infection2">Infection 感染模块</button>
-        <button class="menu-item" data-target="panel-softwaregather">Gather 采集工具</button>
+        <button class="menu-item" data-target="panel-research">Pesquisa</button>
+        <button class="menu-item" data-target="panel-collect">Coleta</button>
+        <button class="menu-item" data-target="panel-puzzle">Quebra-cabeças</button>
+        <button class="menu-item" data-target="panel-masshack">Invasão em massa</button>
+        <button class="menu-item" data-target="panel-infection2">Infecção</button>
+        <button class="menu-item" data-target="panel-softwaregather">Coletor</button>
       </div>
 
       <div class="submenu" id="submenu-logs">
         <div class="panel-header">
           <button class="back-btn" data-back-to-main>&larr;</button>
-          <span class="panel-title">Logs 日志</span>
+          <span class="panel-title">Logs</span>
         </div>
-        <button class="menu-item" data-target="panel-logmonitor">Log Monitor 日志监控</button>
-        <button class="menu-item" data-target="panel-bgmonitor">Background Log Monitor 后台日志监控</button>
-        <button class="menu-item" data-target="panel-logwatcher">Log Watcher 日志监视</button>
-        <button class="menu-item" data-target="panel-loggather">Log Gather 日志采集</button>
+        <button class="menu-item" data-target="panel-logmonitor">Monitor de log</button>
+        <button class="menu-item" data-target="panel-bgmonitor">Monitor de log em segundo plano</button>
+        <button class="menu-item" data-target="panel-logwatcher">Observador de log</button>
+        <button class="menu-item" data-target="panel-loggather">Coleta de logs</button>
       </div>
 
       <div class="submenu" id="submenu-missions">
         <div class="panel-header">
           <button class="back-btn" data-back-to-main>&larr;</button>
-          <span class="panel-title">Missions 任务</span>
+          <span class="panel-title">Missões</span>
         </div>
-        <button class="menu-item" data-target="panel-mission">Mission 任务刷取</button>
-        <button class="menu-item" data-target="panel-repkill">Rep Kill 声望清除</button>
+        <button class="menu-item" data-target="panel-mission">Missões</button>
+        <button class="menu-item" data-target="panel-repkill">Limpeza de reputação</button>
       </div>
 
 
       <section class="module-panel" id="panel-setup">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Setup 设置</span>
+          <span class="panel-title">Configuração</span>
         </div>
         <div class="field-list">
           <label for="setupIpDownloadCenter">Download Center</label>
@@ -361,21 +361,21 @@
           <label for="setupIpUltimateBank">Ultimate Bank</label>
           <input type="text" id="setupIpUltimateBank" placeholder="0.0.0.0" />
         </div>
-        <button id="setupSaveBtn">保存设置</button>
-        <div id="setupStatus">未设置</div>
+        <button id="setupSaveBtn">Salvar configurações</button>
+        <div id="setupStatus">Não configurado</div>
       </section>
 
       <section class="module-panel" id="panel-research">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Research 研究任务</span>
+          <span class="panel-title">Pesquisa</span>
         </div>
-        <label for="researchSoftwareName">要研究的软件（名称.扩展名，不含版本号）</label>
+        <label for="researchSoftwareName">Software a pesquisar (nome.extensão, sem versão)</label>
         <div class="menu-row">
-          <input type="text" id="researchSoftwareName" placeholder="贱人你最好把钱给我.vcol" style="flex: 1;" />
-          <button id="researchCollectToggleBtn" class="hwauto-icon-btn" type="button" title="每轮清空日志前先收款">$</button>
+          <input type="text" id="researchSoftwareName" placeholder="PagueAgora.vcol" style="flex: 1;" />
+          <button id="researchCollectToggleBtn" class="hwauto-icon-btn" type="button" title="Coletar antes de limpar o log de cada ciclo">$</button>
         </div>
-        <label for="researchCycles">升级周期数</label>
+        <label for="researchCycles">Ciclos de upgrade</label>
         <select id="researchCycles">
           <option value="1" selected>1</option>
           <option value="2">2</option>
@@ -388,7 +388,7 @@
           <option value="9">9</option>
           <option value="10">10</option>
         </select>
-        <label for="researchLoopCount">循环次数</label>
+        <label for="researchLoopCount">Repetições</label>
         <select id="researchLoopCount">
           <option value="1" selected>1</option>
           <option value="2">2</option>
@@ -416,214 +416,214 @@
           <option value="24">24</option>
         </select>
         <div class="mission-types">
-          <label><input type="checkbox" id="researchDeleteOldVersion" /> 删除旧版本</label>
+          <label><input type="checkbox" id="researchDeleteOldVersion" /> Excluir versão antiga</label>
         </div>
-        <button id="researchSaveBtn">保存研究设置</button>
-        <div id="researchConfigStatus">未设置</div>
+        <button id="researchSaveBtn">Salvar pesquisa</button>
+        <div id="researchConfigStatus">Não configurado</div>
         <div class="button-row">
-          <button id="researchStartBtn">开始</button>
-          <button id="researchStopBtn">停止</button>
+          <button id="researchStartBtn">Iniciar</button>
+          <button id="researchStopBtn">Parar</button>
         </div>
-        <div id="researchStatus">空闲</div>
+        <div id="researchStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-collect">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Collect 收款任务</span>
+          <span class="panel-title">Coleta</span>
         </div>
-        <p>定时收取挂机收入并清空日志。</p>
-        <label for="collectIntervalMinutes">收款间隔（分钟，最小 10.5）</label>
+        <p>Coleta renda ociosa em intervalos e limpa o log.</p>
+        <label for="collectIntervalMinutes">Intervalo de coleta (minutos, mínimo 10,5)</label>
         <input type="number" id="collectIntervalMinutes" min="10.5" step="0.5" placeholder="60" />
         <div class="button-row">
-          <button id="collectStartBtn">开始</button>
-          <button id="collectStopBtn">停止</button>
+          <button id="collectStartBtn">Iniciar</button>
+          <button id="collectStopBtn">Parar</button>
         </div>
-        <div id="collectStatus">空闲</div>
+        <div id="collectStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-repkill">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Rep Kill 声望清除</span>
+          <span class="panel-title">Limpeza de reputação</span>
         </div>
-        <p>循环领取、接受并中止任务。</p>
+        <p>Repete o ciclo de obter, aceitar e abandonar missões.</p>
         <div class="button-row">
-          <button id="repKillStartBtn">开始</button>
-          <button id="repKillStopBtn">停止</button>
+          <button id="repKillStartBtn">Iniciar</button>
+          <button id="repKillStopBtn">Parar</button>
         </div>
-        <div id="repKillStatus">空闲</div>
+        <div id="repKillStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-logmonitor">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Log Monitor 日志监控</span>
+          <span class="panel-title">Monitor de log</span>
         </div>
         <div class="button-row">
-          <button id="logMonitorStartBtn">开始监控</button>
-          <button id="logMonitorStopBtn">停止监控</button>
+          <button id="logMonitorStartBtn">Iniciar monitor</button>
+          <button id="logMonitorStopBtn">Parar monitor</button>
         </div>
-        <div id="logMonitorStatus">空闲</div>
+        <div id="logMonitorStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-bgmonitor">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Background Log Monitor 后台日志监控</span>
+          <span class="panel-title">Monitor de log em segundo plano</span>
         </div>
-        <p>在后台每隔几分钟轮询一次 /log，有新内容时在工具栏图标上显示徽标——不需要打开标签页。</p>
+        <p>Consulta /log em segundo plano a cada poucos minutos e mostra um badge no ícone da toolbar quando há conteúdo novo — sem abrir uma aba.</p>
         <div class="button-row">
-          <button id="bgLogMonitorStartBtn">开始</button>
-          <button id="bgLogMonitorStopBtn">停止</button>
+          <button id="bgLogMonitorStartBtn">Iniciar</button>
+          <button id="bgLogMonitorStopBtn">Parar</button>
         </div>
-        <button id="bgLogMonitorClearAlertBtn">清除提醒</button>
-        <div id="bgLogMonitorStatus">空闲</div>
+        <button id="bgLogMonitorClearAlertBtn">Limpar alerta</button>
+        <div id="bgLogMonitorStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-logwatcher">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Log Watcher 日志监视</span>
+          <span class="panel-title">Observador de log</span>
         </div>
-        <p>每隔1-3秒刷新当前页面，抢在攻击者清空日志前记下其IP。</p>
+        <p>Recarrega a página atual a cada 1-3 segundos para registrar o IP antes que o atacante limpe o log.</p>
         <div class="button-row">
-          <button id="logWatcherStartBtn">开始（在当前页面）</button>
-          <button id="logWatcherStopBtn">停止</button>
+          <button id="logWatcherStartBtn">Iniciar (na página atual)</button>
+          <button id="logWatcherStopBtn">Parar</button>
         </div>
-        <div id="logWatcherStatus">空闲</div>
+        <div id="logWatcherStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-loggather">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Log Gather 日志采集</span>
+          <span class="panel-title">Coleta de logs</span>
         </div>
-        <div id="gatherStatus">已采集 0 个IP</div>
-        <button id="gatherExportBtn">导出已采集IP</button>
-        <button id="gatherClearBtn">清除已采集IP</button>
+        <div id="gatherStatus">0 IPs coletados</div>
+        <button id="gatherExportBtn">Exportar IPs coletados</button>
+        <button id="gatherClearBtn">Limpar IPs coletados</button>
       </section>
 
       <section class="module-panel" id="panel-softwaregather">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Gather 采集工具</span>
+          <span class="panel-title">Coletor</span>
         </div>
-        <p>连接每个目标时自动采集其可下载软件列表，按IP归类，可导出为CSV。</p>
+        <p>Coleta automaticamente a lista de softwares baixáveis ao conectar em cada alvo, agrupada por IP e exportável como CSV.</p>
         <div class="button-row">
-          <button id="softwareGatherStartBtn">开始</button>
-          <button id="softwareGatherStopBtn">停止</button>
+          <button id="softwareGatherStartBtn">Iniciar</button>
+          <button id="softwareGatherStopBtn">Parar</button>
         </div>
-        <div id="softwareGatherStatus">已停止</div>
-        <button id="softwareGatherExportBtn">导出CSV</button>
-        <button id="softwareGatherClearBtn">清除已采集软件</button>
+        <div id="softwareGatherStatus">Parado</div>
+        <button id="softwareGatherExportBtn">Exportar CSV</button>
+        <button id="softwareGatherClearBtn">Limpar softwares coletados</button>
       </section>
 
       <section class="module-panel" id="panel-mission">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Mission 任务刷取</span>
+          <span class="panel-title">Missões</span>
         </div>
         <div class="mission-types">
-          <label><input type="checkbox" id="missionTypeDelete" /> 删除软件</label>
-          <label><input type="checkbox" id="missionTypeSteal" /> 窃取软件</label>
-          <label><input type="checkbox" id="missionTypeBank" /> 查询银行状态</label>
-          <label><input type="checkbox" id="missionTypeTransfer" /> 转账</label>
+          <label><input type="checkbox" id="missionTypeDelete" /> Excluir software</label>
+          <label><input type="checkbox" id="missionTypeSteal" /> Roubar software</label>
+          <label><input type="checkbox" id="missionTypeBank" /> Consultar status bancário</label>
+          <label><input type="checkbox" id="missionTypeTransfer" /> Transferir dinheiro</label>
         </div>
         <div class="self-transfer">
-          <label for="selfTransferAccount">我的账号#</label>
-          <input type="text" id="selfTransferAccount" placeholder="账号#" />
-          <label for="selfTransferIp">自转账银行</label>
+          <label for="selfTransferAccount">Minha conta #</label>
+          <input type="text" id="selfTransferAccount" placeholder="conta #" />
+          <label for="selfTransferIp">Banco para autotransferência</label>
           <select id="selfTransferIp">
-            <option value="">选择银行…</option>
+            <option value="">Selecione o banco…</option>
             <option value="firstInternational">First International Bank</option>
             <option value="hebc">HEBC</option>
             <option value="americanExpense">American Expense</option>
             <option value="swissInternationalBank">Swiss International Bank</option>
             <option value="ultimateBank">Ultimate Bank</option>
           </select>
-          <button id="selfTransferSaveBtn">保存账号</button>
+          <button id="selfTransferSaveBtn">Salvar conta</button>
           <div id="selfTransferStatus"></div>
         </div>
         <div class="button-row">
-          <button id="missionStartBtn">开始</button>
-          <button id="missionStopBtn">停止</button>
+          <button id="missionStartBtn">Iniciar</button>
+          <button id="missionStopBtn">Parar</button>
         </div>
-        <div id="missionStatus">空闲</div>
+        <div id="missionStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-infection2">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Infection 感染模块</span>
+          <span class="panel-title">Infecção</span>
         </div>
         <div class="field-list">
-          <label for="infection2IpList">IP列表（可选，每行一个——留空则自动从 /hdb 抓取）</label>
+          <label for="infection2IpList">Lista de IPs (opcional, um por linha — deixe vazio para coletar de /hdb automaticamente)</label>
           <textarea id="infection2IpList" rows="3" placeholder="1.2.3.4&#10;5.6.7.8"></textarea>
         </div>
         <div class="field-list">
-          <label for="infection2VirusOptions">病毒选项（每行一个："名称 体积"）</label>
+          <label for="infection2VirusOptions">Opções de vírus (uma por linha: "nome tamanho")</label>
           <textarea id="infection2VirusOptions" rows="2" placeholder="Ultra Warez.vwarez 1331.2mb&#10;Super Warez.vwarez 1024mb&#10;Advanced Warez.vwarez 236mb&#10;Decent Warez.vwarez 36mb&#10;Subrand0m.vwarez 20gb"></textarea>
           <div class="button-row">
             <button id="infection2PresetSpamBtn" class="vddos-preset-spam">Spam</button>
             <button id="infection2PresetWarezBtn" class="vddos-preset-warez">Warez</button>
             <button id="infection2PresetMinerBtn" class="vddos-preset-miner">Miner</button>
           </div>
-          <label for="infection2MaxMinutes">每个文件的最长上传时间（分钟）</label>
+          <label for="infection2MaxMinutes">Tempo máximo de upload por arquivo (minutos)</label>
           <input type="number" id="infection2MaxMinutes" min="1" step="1" placeholder="5" />
-          <button type="button" id="infection2VddosRevealBtn">要上传 vDDoS 吗？点击这里</button>
+          <button type="button" id="infection2VddosRevealBtn">Enviar vDDoS? Clique aqui</button>
           <div id="infection2VddosFileBox" style="display: none;">
-            <label for="infection2VddosFile">vDDoS 文件（名称 体积）</label>
+            <label for="infection2VddosFile">Arquivo vDDoS (nome tamanho)</label>
             <input type="text" id="infection2VddosFile" placeholder="KnockKnockMF.vddos 25mb" />
           </div>
-          <button type="button" id="infection2FolderRevealBtn">使用文件夹吗？点击这里</button>
+          <button type="button" id="infection2FolderRevealBtn">Usar pasta? Clique aqui</button>
           <div id="infection2FolderBox" style="display: none;">
-            <label for="infection2FolderUrl">Download Center 文件夹网址</label>
+            <label for="infection2FolderUrl">URL da pasta do Download Center</label>
             <input type="text" id="infection2FolderUrl" placeholder="https://hackerwars.io/software?action=folder&amp;view=19212181144013" />
           </div>
-          <button id="infection2SaveBtn">保存病毒选项</button>
-          <div id="infection2OptionsStatus">未设置——使用内置默认值</div>
+          <button id="infection2SaveBtn">Salvar opções de vírus</button>
+          <div id="infection2OptionsStatus">Não configurado — usando padrões internos</div>
         </div>
-        <button id="infection2ClearCacheBtn">清除链接缓存</button>
+        <button id="infection2ClearCacheBtn">Limpar cache de links</button>
         <div class="button-row">
-          <button id="infection2StartBtn">开始</button>
-          <button id="infection2StopBtn">停止</button>
+          <button id="infection2StartBtn">Iniciar</button>
+          <button id="infection2StopBtn">Parar</button>
         </div>
-        <div id="infection2Status">空闲</div>
+        <div id="infection2Status">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-puzzle">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Puzzle 解谜任务</span>
+          <span class="panel-title">Quebra-cabeças</span>
         </div>
-        <p>两个字段都留空则从头开始。要从中途继续，请填入当前目标IP及其题号。</p>
-        <label for="puzzleStartNumber">起始题号（留空 = 1）</label>
+        <p>Deixe os dois campos vazios para começar do início. Para continuar do meio, informe o IP-alvo atual e o número do puzzle.</p>
+        <label for="puzzleStartNumber">Número inicial (vazio = 1)</label>
         <input type="number" id="puzzleStartNumber" min="1" max="47" step="1" placeholder="1" />
-        <label for="puzzleResumeIp">从目标IP继续（留空则使用 "First Puzzle" 链接）</label>
+        <label for="puzzleResumeIp">Continuar pelo IP-alvo (vazio usa o link "First Puzzle")</label>
         <input type="text" id="puzzleResumeIp" placeholder="0.0.0.0" />
         <div class="button-row">
-          <button id="puzzleStartBtn">开始</button>
-          <button id="puzzleStopBtn">停止</button>
+          <button id="puzzleStartBtn">Iniciar</button>
+          <button id="puzzleStopBtn">Parar</button>
         </div>
-        <button id="puzzleContinueBtn">继续（解题后）</button>
-        <div id="puzzleStatus">空闲</div>
+        <button id="puzzleContinueBtn">Continuar (após resolver)</button>
+        <div id="puzzleStatus">Parado</div>
       </section>
 
       <section class="module-panel" id="panel-masshack">
         <div class="panel-header">
           <button class="back-btn" data-back>&larr;</button>
-          <span class="panel-title">Mass Hack 批量入侵</span>
+          <span class="panel-title">Invasão em massa</span>
         </div>
         <div class="field-list">
-          <label for="massHackIpList">IP列表（每行一个）</label>
+          <label for="massHackIpList">Lista de IPs (um por linha)</label>
           <textarea id="massHackIpList" rows="4" placeholder="1.2.3.4&#10;5.6.7.8"></textarea>
         </div>
         <div class="button-row">
-          <button id="massHackStartBtn">开始</button>
-          <button id="massHackStopBtn">停止</button>
+          <button id="massHackStartBtn">Iniciar</button>
+          <button id="massHackStopBtn">Parar</button>
         </div>
-        <div id="massHackStatus">空闲</div>
+        <div id="massHackStatus">Parado</div>
       </section>
 
       <div id="log"></div>

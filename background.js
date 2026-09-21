@@ -1,53 +1,53 @@
-chrome.runtime.onMessage.addListener((请求, 发送者, 发送响应) => {
-  if (请求.action === "getTabId") {
-    发送响应({ tabId: 发送者.tab?.id });
+chrome.runtime.onMessage.addListener((requisicao, remetente, enviarResposta) => {
+  if (requisicao.action === "getTabId") {
+    enviarResposta({ tabId: remetente.tab?.id });
     return;
   }
-  // 放在后台的标签页里，setTimeout 可能被节流/杀掉，所以较长的延迟改走 chrome.alarms——
-  // 不管标签页可见与否，它都能唤醒服务工作线程。
-  if (请求.action === "scheduleReload") {
-    const { tabId: 标签页ID, storageKey: 存储键, step: 步骤, href: 链接, delayMs: 延迟毫秒 } = 请求.payload;
-    const 闹钟名称 = JSON.stringify({ tabId: 标签页ID, storageKey: 存储键, step: 步骤, href: 链接 || null });
-    chrome.alarms.create(闹钟名称, { delayInMinutes: Math.max(延迟毫秒 / 60000, 0.5) });
-    发送响应({ ok: true });
+  // Em abas em segundo plano, setTimeout pode ser limitado ou interrompido; atrasos longos usam
+  // chrome.alarms, que desperta o service worker mesmo que a aba não esteja visível.
+  if (requisicao.action === "scheduleReload") {
+    const { tabId: idAba, storageKey: chaveStorage, step: etapa, href: link, delayMs: atrasoMs } = requisicao.payload;
+    const nomeAlarme = JSON.stringify({ tabId: idAba, storageKey: chaveStorage, step: etapa, href: link || null });
+    chrome.alarms.create(nomeAlarme, { delayInMinutes: Math.max(atrasoMs / 60000, 0.5) });
+    enviarResposta({ ok: true });
     return;
   }
-  // 内容脚本不能直接调用 chrome.tabs.create。
-  if (请求.action === "openTab") {
-    chrome.tabs.create({ url: 请求.payload.url });
-    发送响应({ ok: true });
+  // Content scripts não podem chamar chrome.tabs.create diretamente.
+  if (requisicao.action === "openTab") {
+    chrome.tabs.create({ url: requisicao.payload.url });
+    enviarResposta({ ok: true });
     return;
   }
-  // 悬浮窗（overlay.js 以内容脚本形式注入的 popup.js）自己没有 chrome.alarms、chrome.action、
-  // chrome.downloads——都通过这里转发。
-  if (请求.action === "createAlarm") {
-    chrome.alarms.create(请求.payload.name, 请求.payload.options);
-    发送响应({ ok: true });
+  // O overlay (popup.js injetado por overlay.js como content script) não tem chrome.alarms,
+  // chrome.action nem chrome.downloads; estas chamadas são encaminhadas por aqui.
+  if (requisicao.action === "createAlarm") {
+    chrome.alarms.create(requisicao.payload.name, requisicao.payload.options);
+    enviarResposta({ ok: true });
     return;
   }
-  if (请求.action === "clearAlarm") {
-    chrome.alarms.clear(请求.payload.name);
-    发送响应({ ok: true });
+  if (requisicao.action === "clearAlarm") {
+    chrome.alarms.clear(requisicao.payload.name);
+    enviarResposta({ ok: true });
     return;
   }
-  if (请求.action === "setBadgeText") {
-    chrome.action.setBadgeText({ text: 请求.payload.text });
-    发送响应({ ok: true });
+  if (requisicao.action === "setBadgeText") {
+    chrome.action.setBadgeText({ text: requisicao.payload.text });
+    enviarResposta({ ok: true });
     return;
   }
-  if (请求.action === "download") {
-    chrome.downloads.download({ url: 请求.payload.url, filename: 请求.payload.filename });
-    发送响应({ ok: true });
+  if (requisicao.action === "download") {
+    chrome.downloads.download({ url: requisicao.payload.url, filename: requisicao.payload.filename });
+    enviarResposta({ ok: true });
   }
 });
 
-// 直接从服务工作线程本身抓取 /log（credentials: "include" 会带上会话 cookie），这样不需要
-// 任何标签页停留在 /log 上就能轮询。只标记和上一次快照不同的新增行——第一次检查只是建立
-// 基线，不会把目标已有的整份日志都当成"新出现"来报警。
-const 后台日志监控闹钟名称 = "bgLogMonitor";
+// Busca /log diretamente do service worker (credentials: "include" envia o cookie de sessão),
+// sem manter uma aba em /log. Marca somente linhas novas desde o último snapshot; a primeira
+// verificação apenas cria a linha de base e não alerta sobre entradas já existentes.
+const nomeAlarmeMonitorLogFundo = "bgLogMonitor";
 
-function 解码日志HTML实体(文本) {
-  return 文本
+function decodificarEntidadesHtmlDoLog(texto) {
+  return texto
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
@@ -55,78 +55,77 @@ function 解码日志HTML实体(文本) {
     .replace(/&amp;/g, "&");
 }
 
-// 真正的入侵行长这样："2026-08-23 18:29 - [240.53.223.156] logged in as root"——外部IP登进了
-// 我们自己的机器。日志里其他看起来"新出现"的内容都是正常噪音：我们自己的操作
-// （"localhost logged in to [1.2.3.4] as root"）、以及我们名下服务器的收入播报
-// （"Server [1.2.3.4] mailed X emails, generating $Y."）。直接匹配"root登录"这句措辞（而不是
-// 排除"localhost"），能把这些噪音挡在警报之外。
-function 是否为入侵行(行) {
-  return /\[\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\]\s*logged in as root/i.test(行);
+// Uma entrada de invasão real é como "2026-08-23 18:29 - [240.53.223.156] logged in as root":
+// um IP externo entrou na nossa máquina. Outras linhas novas são ruído normal, como nossas
+// próprias ações ("localhost logged in to [1.2.3.4] as root") e receitas de servidores.
+// Corresponder diretamente ao login root evita esses falsos alertas.
+function ehLinhaDeIntrusao(linha) {
+  return /\[\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\]\s*logged in as root/i.test(linha);
 }
 
-async function 后台检查自身日志() {
-  const { bgLogMonitor: 运行器 } = await chrome.storage.local.get("bgLogMonitor");
-  if (!运行器 || !运行器.running) return;
+async function verificarLogProprioEmSegundoPlano() {
+  const { bgLogMonitor: executor } = await chrome.storage.local.get("bgLogMonitor");
+  if (!executor || !executor.running) return;
 
   try {
-    const 响应 = await fetch("https://hackerwars.io/log", { credentials: "include" });
-    const html = await 响应.text();
-    const 匹配 = html.match(/<textarea[^>]*name="log"[^>]*>([\s\S]*?)<\/textarea>/i);
-    const 文本 = 匹配 ? 解码日志HTML实体(匹配[1]) : "";
-    const 行列表 = 文本
+    const resposta = await fetch("https://hackerwars.io/log", { credentials: "include" });
+    const html = await resposta.text();
+    const match = html.match(/<textarea[^>]*name="log"[^>]*>([\s\S]*?)<\/textarea>/i);
+    const texto = match ? decodificarEntidadesHtmlDoLog(match[1]) : "";
+    const linhas = texto
       .split(/\r?\n/)
-      .map((行) => 行.trim())
+      .map((linha) => linha.trim())
       .filter(Boolean);
 
-    const 已有基线 = (运行器.knownLines || []).length > 0;
-    const 已知集合 = new Set(运行器.knownLines || []);
-    const 新增行列表 = 行列表.filter((行) => !已知集合.has(行));
-    const 入侵行列表 = 新增行列表.filter(是否为入侵行);
+    const temLinhaBase = (executor.knownLines || []).length > 0;
+    const conjuntoConhecido = new Set(executor.knownLines || []);
+    const linhasNovas = linhas.filter((linha) => !conjuntoConhecido.has(linha));
+    const linhasIntrusao = linhasNovas.filter(ehLinhaDeIntrusao);
 
-    const 更新后的状态 = { ...运行器, lastCheck: Date.now(), knownLines: 行列表.slice(0, 200) };
-    if (已有基线 && 入侵行列表.length > 0) {
-      更新后的状态.lastAlertAt = Date.now();
-      更新后的状态.alertLines = 入侵行列表.slice(0, 20);
-      chrome.action.setBadgeText({ text: String(入侵行列表.length) });
+    const estadoAtualizado = { ...executor, lastCheck: Date.now(), knownLines: linhas.slice(0, 200) };
+    if (temLinhaBase && linhasIntrusao.length > 0) {
+      estadoAtualizado.lastAlertAt = Date.now();
+      estadoAtualizado.alertLines = linhasIntrusao.slice(0, 20);
+      chrome.action.setBadgeText({ text: String(linhasIntrusao.length) });
       chrome.action.setBadgeBackgroundColor({ color: "#d33" });
     }
 
-    await chrome.storage.local.set({ bgLogMonitor: 更新后的状态 });
-  } catch (错误) {
-    console.log("[HWAuto] background log monitor check failed", 错误);
+    await chrome.storage.local.set({ bgLogMonitor: estadoAtualizado });
+  } catch (erro) {
+    console.log("[HWAuto] background log monitor check failed", erro);
   }
 }
 
-chrome.alarms.onAlarm.addListener((闹钟) => {
-  if (闹钟.name === 后台日志监控闹钟名称) {
-    后台检查自身日志();
+chrome.alarms.onAlarm.addListener((alarme) => {
+  if (alarme.name === nomeAlarmeMonitorLogFundo) {
+    verificarLogProprioEmSegundoPlano();
     return;
   }
 
-  let 信息;
+  let info;
   try {
-    信息 = JSON.parse(闹钟.name);
+    info = JSON.parse(alarme.name);
   } catch {
     return;
   }
-  const { tabId: 标签页ID, storageKey: 存储键, step: 步骤, href: 链接 } = 信息;
-  chrome.storage.local.get(存储键, (数据) => {
-    const 运行器 = 数据[存储键];
-    // 状态已经过时就跳过：已停止、换了别的步骤、或者预约之后标签页被挪作他用。
-    if (!运行器 || !运行器.running || 运行器.tabId !== 标签页ID || 运行器.step !== 步骤) return;
-    chrome.tabs.get(标签页ID, (标签页) => {
-      if (chrome.runtime.lastError || !标签页) return;
-      if (链接) {
-        chrome.tabs.update(标签页ID, { url: 链接 });
+  const { tabId: idAba, storageKey: chaveStorage, step: etapa, href: link } = info;
+  chrome.storage.local.get(chaveStorage, (dados) => {
+    const executor = dados[chaveStorage];
+    // Ignore estados obsoletos: parados, em outra etapa ou cuja aba foi reutilizada após o agendamento.
+    if (!executor || !executor.running || executor.tabId !== idAba || executor.step !== etapa) return;
+    chrome.tabs.get(idAba, (aba) => {
+      if (chrome.runtime.lastError || !aba) return;
+      if (link) {
+        chrome.tabs.update(idAba, { url: link });
       } else {
-        chrome.tabs.reload(标签页ID);
+        chrome.tabs.reload(idAba);
       }
     });
   });
 });
 
-// 把用到已关闭标签页的运行器标记为已停止，避免弹窗里一直显示过时的"运行中"状态。
-chrome.tabs.onRemoved.addListener((标签页ID) => {
+// Marca executores de abas fechadas como parados, evitando status obsoleto no pop-up.
+chrome.tabs.onRemoved.addListener((idAba) => {
   chrome.storage.local.get(
     [
       "logMonitor",
@@ -150,35 +149,35 @@ chrome.tabs.onRemoved.addListener((标签页ID) => {
       collectRunner,
       repKillRunner,
     }) => {
-      const 更新集合 = {};
-      if (logMonitor && logMonitor.tabId === 标签页ID && logMonitor.running) {
-        更新集合.logMonitor = { ...logMonitor, running: false };
+      const atualizacoes = {};
+      if (logMonitor && logMonitor.tabId === idAba && logMonitor.running) {
+        atualizacoes.logMonitor = { ...logMonitor, running: false };
       }
-      if (logWatcherRunner && logWatcherRunner.tabId === 标签页ID && logWatcherRunner.running) {
-        更新集合.logWatcherRunner = { ...logWatcherRunner, running: false };
+      if (logWatcherRunner && logWatcherRunner.tabId === idAba && logWatcherRunner.running) {
+        atualizacoes.logWatcherRunner = { ...logWatcherRunner, running: false };
       }
-      if (missionRunner && missionRunner.tabId === 标签页ID && missionRunner.running) {
-        更新集合.missionRunner = { ...missionRunner, running: false };
+      if (missionRunner && missionRunner.tabId === idAba && missionRunner.running) {
+        atualizacoes.missionRunner = { ...missionRunner, running: false };
       }
-      if (infection2Runner && infection2Runner.tabId === 标签页ID && infection2Runner.running) {
-        更新集合.infection2Runner = { ...infection2Runner, running: false };
+      if (infection2Runner && infection2Runner.tabId === idAba && infection2Runner.running) {
+        atualizacoes.infection2Runner = { ...infection2Runner, running: false };
       }
-      if (researchRunner && researchRunner.tabId === 标签页ID && researchRunner.running) {
-        更新集合.researchRunner = { ...researchRunner, running: false };
+      if (researchRunner && researchRunner.tabId === idAba && researchRunner.running) {
+        atualizacoes.researchRunner = { ...researchRunner, running: false };
       }
-      if (puzzleRunner && puzzleRunner.tabId === 标签页ID && puzzleRunner.running) {
-        更新集合.puzzleRunner = { ...puzzleRunner, running: false };
+      if (puzzleRunner && puzzleRunner.tabId === idAba && puzzleRunner.running) {
+        atualizacoes.puzzleRunner = { ...puzzleRunner, running: false };
       }
-      if (massHackRunner && massHackRunner.tabId === 标签页ID && massHackRunner.running) {
-        更新集合.massHackRunner = { ...massHackRunner, running: false };
+      if (massHackRunner && massHackRunner.tabId === idAba && massHackRunner.running) {
+        atualizacoes.massHackRunner = { ...massHackRunner, running: false };
       }
-      if (collectRunner && collectRunner.tabId === 标签页ID && collectRunner.running) {
-        更新集合.collectRunner = { ...collectRunner, running: false };
+      if (collectRunner && collectRunner.tabId === idAba && collectRunner.running) {
+        atualizacoes.collectRunner = { ...collectRunner, running: false };
       }
-      if (repKillRunner && repKillRunner.tabId === 标签页ID && repKillRunner.running) {
-        更新集合.repKillRunner = { ...repKillRunner, running: false };
+      if (repKillRunner && repKillRunner.tabId === idAba && repKillRunner.running) {
+        atualizacoes.repKillRunner = { ...repKillRunner, running: false };
       }
-      if (Object.keys(更新集合).length) chrome.storage.local.set(更新集合);
+      if (Object.keys(atualizacoes).length) chrome.storage.local.set(atualizacoes);
     }
   );
 });
