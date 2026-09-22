@@ -301,10 +301,14 @@ const MISSION_STEPS = {
   // software (exceto vírus) disponível ali, um por vez, antes de sair.
   grab_loot: {
     timeout: 15000,
+    skipElapsedGate: true,
     find: (state) => state.lootQueue || encontrarLinhasDeDownloadRestantes([{ name: state.fileName, version: state.fileVersion }]),
     resolve: (fila, state) => {
       if (fila.length > 0) {
-        return { next: "grab_loot", patch: { lootQueue: fila.slice(1), lootDownloaded: [...(state.lootDownloaded || []), fila[0]] } };
+        return {
+          next: "await_loot_download",
+          patch: { lootQueue: fila.slice(1), lootDownloaded: [...(state.lootDownloaded || []), fila[0]] },
+        };
       }
       const temLoot = (state.lootDownloaded || []).length > 0;
       return { next: temLoot ? "goto_own_software_for_loot" : "goto_logs", patch: { lootQueue: undefined } };
@@ -314,6 +318,15 @@ const MISSION_STEPS = {
       const link = encontrarLinkDaLinhaDoSoftware(fila[0].name, fila[0].version, "cmd=dl");
       if (link) link.click();
     },
+  },
+  // Baixar software (diferente do arquivo principal, que é instantâneo) tem cronômetro real; espera
+  // sumir antes de tentar o próximo item, senão o clique seguinte acha a página em transição.
+  await_loot_download: {
+    timeout: 30000,
+    skipElapsedGate: true,
+    find: () => (document.querySelector(".elapsed") ? null : true),
+    resolve: () => ({ next: "grab_loot" }),
+    perform: () => {},
   },
   goto_own_software_for_loot: {
     timeout: 15000,
