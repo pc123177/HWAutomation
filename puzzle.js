@@ -150,10 +150,14 @@ const PUZZLE_STEPS = {
   // disponível ali, um por vez, antes de ir instalar o CRC.
   grab_puzzle_loot: {
     timeout: 15000,
+    skipElapsedGate: true,
     find: (estado) => estado.lootQueue || encontrarLinhasDeDownloadRestantes([{ name: estado.crcFileName, version: estado.crcFileVersion }]),
     resolve: (fila, estado) => {
       if (fila.length > 0) {
-        return { next: "grab_puzzle_loot", patch: { lootQueue: fila.slice(1), lootDownloaded: [...(estado.lootDownloaded || []), fila[0]] } };
+        return {
+          next: "await_puzzle_loot_download",
+          patch: { lootQueue: fila.slice(1), lootDownloaded: [...(estado.lootDownloaded || []), fila[0]] },
+        };
       }
       return { next: "await_download", patch: { lootQueue: undefined } };
     },
@@ -162,6 +166,15 @@ const PUZZLE_STEPS = {
       const link = encontrarLinkDaLinhaDoSoftware(fila[0].name, fila[0].version, "cmd=dl");
       if (link) link.click();
     },
+  },
+  // Baixar software (diferente do .crc, que é instantâneo) tem cronômetro real; espera sumir antes
+  // de tentar o próximo item, senão o clique seguinte acha a página em transição.
+  await_puzzle_loot_download: {
+    timeout: 30000,
+    skipElapsedGate: true,
+    find: () => (document.querySelector(".elapsed") ? null : true),
+    resolve: () => ({ next: "grab_puzzle_loot" }),
+    perform: () => {},
   },
   await_download: {
     timeout: 60000,
