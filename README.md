@@ -46,7 +46,13 @@ Declaradas em [manifest.json](manifest.json): `activeTab`, `scripting`, `storage
 
 ### Não lançado
 
-_Ainda não há alterações._
+**Adicionado**
+
+- `missions.js`: durante missões "steal software", após baixar o arquivo da missão, também baixa qualquer outro software disponível no alvo antes de sair.
+
+**Corrigido**
+
+- `missions.js` / `puzzle.js`: o próprio login agora é apagado do log do alvo antes de sair (`logout`), em vez de deixar o rastro de invasão lá — mesmo tratamento que `infection2.js` e `research.js` já davam ao próprio log.
 
 ### 2.2.0
 

@@ -218,6 +218,37 @@ const MISSION_STEPS = {
     resolve: (elemento, state) => ({ next: state.missionType === "steal" ? "steal_download" : "delete_file" }),
     perform: (elemento) => elemento.click(),
   },
+  // Navegação absoluta (não um clique relativo): esta etapa às vezes é alcançada a partir da nossa
+  // própria página /software, que não tem um link "?view=logs" para o alvo conectado.
+  goto_logs: {
+    timeout: 15000,
+    skipElapsedGate: true,
+    find: () => document.body,
+    resolve: () => ({ next: "clear_logs" }),
+    perform: () => {
+      location.href = "https://hackerwars.io/internet?view=logs";
+    },
+  },
+  clear_logs: {
+    timeout: 15000,
+    find: () => {
+      const textarea = obterTextareaDoLog();
+      const botao = obterBotaoEditarLog();
+      return textarea && botao ? { textarea: textarea, button: botao } : null;
+    },
+    resolve: () => ({ next: "wait_logs_clear" }),
+    perform: async ({ textarea, button }) => {
+      await cancelarProcessosAntigosDeEdicaoDeLog();
+      textarea.value = removerLinhaComIpProprio(textarea.value, obterIpProprio());
+      button.click();
+    },
+  },
+  wait_logs_clear: {
+    timeout: 30000,
+    find: () => (document.querySelector(".elapsed") ? null : true),
+    resolve: (elemento, state) => ({ next: state.stage === "hirer" ? "logout_hirer" : "logout" }),
+    perform: () => {},
+  },
   delete_file: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=del"),
@@ -244,13 +275,13 @@ const MISSION_STEPS = {
   reupload_deleted_file: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=up"),
-    resolve: () => ({ next: "logout" }),
+    resolve: () => ({ next: "goto_logs" }),
     perform: (elemento) => elemento.click(),
   },
   steal_download: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=dl"),
-    resolve: () => ({ next: "logout" }),
+    resolve: () => ({ next: "grab_loot" }),
     perform: (elemento) => elemento.click(),
     onNotFound: () => {
       const minutos = encontrarMinutosAteResetSoftware();
@@ -260,6 +291,19 @@ const MISSION_STEPS = {
         retryDelayMs: valorLimitado * 60000 + 30000,
         reason: `software not spawned yet, waiting ~${valorLimitado}m + 30s for reset`,
       };
+    },
+  },
+  // Já estamos logados no alvo prestes a ter o log limpo; aproveita para baixar qualquer outro
+  // software disponível ali, um por vez, antes de sair.
+  grab_loot: {
+    timeout: 15000,
+    find: (state) => state.lootQueue || encontrarLinhasDeDownloadRestantes([{ name: state.fileName, version: state.fileVersion }]),
+    resolve: (fila) =>
+      fila.length > 0 ? { next: "grab_loot", patch: { lootQueue: fila.slice(1) } } : { next: "goto_logs", patch: { lootQueue: undefined } },
+    perform: (fila) => {
+      if (fila.length === 0) return;
+      const link = encontrarLinkDaLinhaDoSoftware(fila[0].name, fila[0].version, "cmd=dl");
+      if (link) link.click();
     },
   },
   logout: {
@@ -324,7 +368,7 @@ const MISSION_STEPS = {
   upload_file: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=up"),
-    resolve: () => ({ next: "logout_hirer" }),
+    resolve: () => ({ next: "goto_logs" }),
     perform: (elemento) => elemento.click(),
   },
   logout_hirer: {
