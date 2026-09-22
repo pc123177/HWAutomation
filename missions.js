@@ -229,9 +229,11 @@ const MISSION_STEPS = {
   // para navegação absoluta com ip= explícito quando a página atual não tem esse link (ex: nossa
   // própria página /software, usada para reupload/upload).
   goto_logs: {
-    timeout: 15000,
+    timeout: 30000,
     skipElapsedGate: true,
-    find: () => document.querySelector('a[href="?view=logs"]') || true,
+    // A ação que acabou de acontecer (download/delete/upload) pode ter cronômetro real; espera
+    // sumir antes de ir pro log, senão navega no meio da ação.
+    find: () => (document.querySelector(".elapsed") ? null : document.querySelector('a[href="?view=logs"]') || true),
     resolve: () => ({ next: "clear_logs" }),
     perform: (encontrado, estado) => {
       if (encontrado !== true) return encontrado.click();
@@ -304,8 +306,9 @@ const MISSION_STEPS = {
       };
     },
   },
-  // Já estamos logados no alvo prestes a ter o log limpo; aproveita para baixar qualquer outro
-  // software (exceto vírus) disponível ali, um por vez, antes de sair.
+  // Já estamos logados no alvo; aproveita para baixar qualquer outro software (exceto vírus)
+  // disponível ali, um por vez, antes de sair. goto_logs já espera o cronômetro do download
+  // sumir, então limpa o log (uma ação = um rastro novo) antes do próximo item.
   grab_loot: {
     timeout: 15000,
     skipElapsedGate: true,
@@ -313,8 +316,8 @@ const MISSION_STEPS = {
     resolve: (fila, state) => {
       if (fila.length > 0) {
         return {
-          next: "await_loot_download",
-          patch: { lootQueue: fila.slice(1), lootDownloaded: [...(state.lootDownloaded || []), fila[0]] },
+          next: "goto_logs",
+          patch: { lootQueue: fila.slice(1), lootDownloaded: [...(state.lootDownloaded || []), fila[0]], logsReturnStep: "grab_loot" },
         };
       }
       const temLoot = (state.lootDownloaded || []).length > 0;
@@ -328,16 +331,6 @@ const MISSION_STEPS = {
       const link = encontrarLinkDaLinhaDoSoftware(fila[0].name, fila[0].version, "cmd=dl");
       if (link) link.click();
     },
-  },
-  // Baixar software (diferente do arquivo principal, que é instantâneo) tem cronômetro real; espera
-  // sumir antes de tentar o próximo item, senão o clique seguinte acha a página em transição.
-  // Depois limpa o log (uma ação = um rastro novo) antes de seguir pro próximo item.
-  await_loot_download: {
-    timeout: 30000,
-    skipElapsedGate: true,
-    find: () => (document.querySelector(".elapsed") ? null : true),
-    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "grab_loot" } }),
-    perform: () => {},
   },
   goto_own_software_for_loot: {
     timeout: 15000,

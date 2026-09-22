@@ -150,7 +150,8 @@ const PUZZLE_STEPS = {
     perform: (resultadoEncontrado) => resultadoEncontrado.dlLink.click(),
   },
   // Ainda conectados ao alvo: aproveita para baixar qualquer outro software (exceto vírus)
-  // disponível ali, um por vez, antes de ir instalar o CRC.
+  // disponível ali, um por vez, antes de ir instalar o CRC. goto_logs já espera o cronômetro do
+  // download sumir, então limpa o log (uma ação = um rastro novo) antes do próximo item.
   grab_puzzle_loot: {
     timeout: 15000,
     skipElapsedGate: true,
@@ -158,8 +159,8 @@ const PUZZLE_STEPS = {
     resolve: (fila, estado) => {
       if (fila.length > 0) {
         return {
-          next: "await_puzzle_loot_download",
-          patch: { lootQueue: fila.slice(1), lootDownloaded: [...(estado.lootDownloaded || []), fila[0]] },
+          next: "goto_logs",
+          patch: { lootQueue: fila.slice(1), lootDownloaded: [...(estado.lootDownloaded || []), fila[0]], logsReturnStep: "grab_puzzle_loot" },
         };
       }
       return { next: "await_download", patch: { lootQueue: undefined } };
@@ -169,16 +170,6 @@ const PUZZLE_STEPS = {
       const link = encontrarLinkDaLinhaDoSoftware(fila[0].name, fila[0].version, "cmd=dl");
       if (link) link.click();
     },
-  },
-  // Baixar software (diferente do .crc, que é instantâneo) tem cronômetro real; espera sumir antes
-  // de tentar o próximo item, senão o clique seguinte acha a página em transição.
-  // Depois limpa o log (uma ação = um rastro novo) antes de seguir pro próximo item.
-  await_puzzle_loot_download: {
-    timeout: 30000,
-    skipElapsedGate: true,
-    find: () => (document.querySelector(".elapsed") ? null : true),
-    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "grab_puzzle_loot" } }),
-    perform: () => {},
   },
   await_download: {
     timeout: 60000,
@@ -368,9 +359,11 @@ const PUZZLE_STEPS = {
   // para navegação absoluta com ip= explícito quando a página atual não tem esse link (ex: após
   // resolver um mini-jogo/riddle).
   goto_logs: {
-    timeout: 15000,
+    timeout: 30000,
     skipElapsedGate: true,
-    find: () => document.querySelector('a[href="?view=logs"]') || true,
+    // A ação que acabou de acontecer (download/delete/upload) pode ter cronômetro real; espera
+    // sumir antes de ir pro log, senão navega no meio da ação (ex: CRC do puzzle).
+    find: () => (document.querySelector(".elapsed") ? null : document.querySelector('a[href="?view=logs"]') || true),
     resolve: () => ({ next: "clear_logs" }),
     perform: (encontrado, estado) => {
       if (encontrado !== true) return encontrado.click();
