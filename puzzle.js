@@ -266,10 +266,39 @@ const PUZZLE_STEPS = {
     timeout: 15000,
     find: encontrarProximoIpPuzzle,
     resolve: (endereco, estado) => ({
-      next: "logout",
+      next: "goto_logs",
       patch: { nextIp: endereco, puzzleNumber: estado.puzzleNumber + 1 },
       complete: true,
     }),
+    perform: () => {},
+  },
+  goto_logs: {
+    timeout: 15000,
+    skipElapsedGate: true,
+    find: () => document.body,
+    resolve: () => ({ next: "clear_logs" }),
+    perform: () => {
+      location.href = "https://hackerwars.io/internet?view=logs";
+    },
+  },
+  clear_logs: {
+    timeout: 15000,
+    find: () => {
+      const textarea = obterTextareaDoLog();
+      const botao = obterBotaoEditarLog();
+      return textarea && botao ? { textarea: textarea, button: botao } : null;
+    },
+    resolve: () => ({ next: "wait_logs_clear" }),
+    perform: async ({ textarea, button }) => {
+      await cancelarProcessosAntigosDeEdicaoDeLog();
+      textarea.value = removerLinhaComIpProprio(textarea.value, obterIpProprio());
+      button.click();
+    },
+  },
+  wait_logs_clear: {
+    timeout: 30000,
+    find: () => (document.querySelector(".elapsed") ? null : true),
+    resolve: () => ({ next: "logout" }),
     perform: () => {},
   },
   logout: {

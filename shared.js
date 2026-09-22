@@ -78,6 +78,24 @@ function encontrarLinhaDoSoftware(nomeArquivo, versaoArquivo) {
   return null;
 }
 
+// Software baixável na página atual, exceto os itens já contabilizados (por exemplo, o arquivo
+// alvo da missão, baixado à parte). Usado para pegar o resto do "loot" antes de sair do alvo.
+function encontrarLinhasDeDownloadRestantes(itensIgnorados = []) {
+  const chave = (nome, versao) => `${nome}|${versao}`;
+  const ignorar = new Set(itensIgnorados.map(({ name, version }) => chave(name, version)));
+  const linhas = [];
+  for (const linha of document.querySelectorAll("table.table-software tbody tr[id]")) {
+    if (!linha.querySelector(".he16-download")) continue;
+    const celulas = linha.querySelectorAll("td");
+    if (celulas.length < 3) continue;
+    const nome = celulas[1].textContent.trim();
+    const versao = celulas[2].textContent.trim();
+    if (!nome || ignorar.has(chave(nome, versao))) continue;
+    linhas.push({ name: nome, version: versao });
+  }
+  return linhas;
+}
+
 // O botão "Copy IPs" de /hdb só grava na área de transferência do sistema, inacessível ao content
 // script; os IPs já estão na tabela, então são coletados diretamente dela.
 function encontrarListaDeIpsDoHDB() {
