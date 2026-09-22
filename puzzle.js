@@ -143,8 +143,25 @@ const PUZZLE_STEPS = {
   find_crc: {
     timeout: 15000,
     find: () => encontrarLinhaCRC(),
-    resolve: (resultadoEncontrado) => ({ next: "await_download", patch: { crcFileName: resultadoEncontrado.name, crcFileVersion: resultadoEncontrado.version } }),
+    resolve: (resultadoEncontrado) => ({ next: "grab_puzzle_loot", patch: { crcFileName: resultadoEncontrado.name, crcFileVersion: resultadoEncontrado.version } }),
     perform: (resultadoEncontrado) => resultadoEncontrado.dlLink.click(),
+  },
+  // Ainda conectados ao alvo: aproveita para baixar qualquer outro software (exceto vírus)
+  // disponível ali, um por vez, antes de ir instalar o CRC.
+  grab_puzzle_loot: {
+    timeout: 15000,
+    find: (estado) => estado.lootQueue || encontrarLinhasDeDownloadRestantes([{ name: estado.crcFileName, version: estado.crcFileVersion }]),
+    resolve: (fila, estado) => {
+      if (fila.length > 0) {
+        return { next: "grab_puzzle_loot", patch: { lootQueue: fila.slice(1), lootDownloaded: [...(estado.lootDownloaded || []), fila[0]] } };
+      }
+      return { next: "await_download", patch: { lootQueue: undefined } };
+    },
+    perform: (fila) => {
+      if (fila.length === 0) return;
+      const link = encontrarLinkDaLinhaDoSoftware(fila[0].name, fila[0].version, "cmd=dl");
+      if (link) link.click();
+    },
   },
   await_download: {
     timeout: 60000,
@@ -180,13 +197,67 @@ const PUZZLE_STEPS = {
     resolve: (resultadoEncontrado, estado) => {
       const patch = { installedCrcFileName: estado.crcFileName, installedCrcFileVersion: estado.crcFileVersion };
       const ipFixo = tabelaIpsFixosPuzzle[estado.puzzleNumber];
-      return ipFixo
-        ? { next: "logout", patch: { ...patch, nextIp: ipFixo, puzzleNumber: estado.puzzleNumber + 1 } }
-        : { next: "find_riddle", patch: patch };
+      const postLootNext = ipFixo ? "logout" : "find_riddle";
+      const postLootPatch = ipFixo ? { nextIp: ipFixo, puzzleNumber: estado.puzzleNumber + 1 } : {};
+      const temLoot = (estado.lootDownloaded || []).length > 0;
+      return temLoot
+        ? { next: "install_loot", patch: { ...patch, postLootNext: postLootNext, postLootPatch: postLootPatch } }
+        : { next: postLootNext, patch: { ...patch, ...postLootPatch } };
     },
     perform: (resultadoEncontrado) => {
       if (resultadoEncontrado && resultadoEncontrado.link) resultadoEncontrado.link.click();
     },
+  },
+  // Já estamos em /software (própria); instala cada item baixado só se for melhor que a versão já
+  // instalada (mesmo nome), apagando a antiga depois — mesma regra usada no CRC acima.
+  install_loot: {
+    timeout: 15000,
+    find: (estado) => {
+      const fila = estado.lootDownloaded || [];
+      if (fila.length === 0) return "done";
+      const linha = encontrarLinhaDoSoftware(fila[0].name, fila[0].version);
+      return linha ? { linha: linha, instalada: encontrarVersaoInstaladaPorNome(fila[0].name) } : "not_found";
+    },
+    resolve: (resultado, estado) => {
+      if (resultado === "done") {
+        return {
+          next: estado.postLootNext || "find_riddle",
+          patch: { lootDownloaded: undefined, postLootNext: undefined, ...(estado.postLootPatch || {}), postLootPatch: undefined },
+        };
+      }
+      const fila = estado.lootDownloaded;
+      if (resultado === "not_found" || !versaoEhMelhor(fila[0].version, resultado.instalada)) {
+        return { next: "install_loot", patch: { lootDownloaded: fila.slice(1) } };
+      }
+      return { next: "await_loot_install", patch: { lootInstallOldVersion: resultado.instalada } };
+    },
+    perform: (resultado) => {
+      if (resultado === "done" || resultado === "not_found") return;
+      resultado.linha.querySelector('a[href*="action=install"]')?.click();
+    },
+  },
+  await_loot_install: {
+    timeout: 60000,
+    find: (estado) => {
+      const linha = encontrarLinhaDoSoftware(estado.lootDownloaded[0].name, estado.lootDownloaded[0].version);
+      return linha && linha.classList.contains("installed") ? true : null;
+    },
+    resolve: (encontrado, estado) => {
+      const item = estado.lootDownloaded[0];
+      const versaoAntiga = estado.lootInstallOldVersion;
+      if (versaoAntiga != null && versaoAntiga !== item.version) return { next: "delete_old_loot" };
+      return { next: "install_loot", patch: { lootDownloaded: estado.lootDownloaded.slice(1), lootInstallOldVersion: undefined } };
+    },
+    perform: () => {},
+  },
+  delete_old_loot: {
+    timeout: 15000,
+    find: (estado) => encontrarLinkDaLinhaDoSoftware(estado.lootDownloaded[0].name, estado.lootInstallOldVersion, "action=del"),
+    resolve: (elemento, estado) => ({
+      next: "install_loot",
+      patch: { lootDownloaded: estado.lootDownloaded.slice(1), lootInstallOldVersion: undefined },
+    }),
+    perform: (elemento) => elemento.click(),
   },
   find_riddle: {
     timeout: 120000,
@@ -272,17 +343,22 @@ const PUZZLE_STEPS = {
     }),
     perform: () => {},
   },
+  // Prefere clicar no link relativo já presente na página (preserva o alvo conectado); só cai
+  // para navegação absoluta com ip= explícito quando a página atual não tem esse link (ex: após
+  // resolver um mini-jogo/riddle).
   goto_logs: {
     timeout: 15000,
     skipElapsedGate: true,
-    find: () => document.body,
+    find: () => document.querySelector('a[href="?view=logs"]') || true,
     resolve: () => ({ next: "clear_logs" }),
-    perform: () => {
-      location.href = "https://hackerwars.io/internet?view=logs";
+    perform: (encontrado, estado) => {
+      if (encontrado !== true) return encontrado.click();
+      location.href = `https://hackerwars.io/internet?ip=${estado.currentIp}&view=logs`;
     },
   },
   clear_logs: {
     timeout: 15000,
+    skipElapsedGate: true,
     find: () => {
       const textarea = obterTextareaDoLog();
       const botao = obterBotaoEditarLog();

@@ -78,8 +78,14 @@ function encontrarLinhaDoSoftware(nomeArquivo, versaoArquivo) {
   return null;
 }
 
-// Software baixável na página atual, exceto os itens já contabilizados (por exemplo, o arquivo
-// alvo da missão, baixado à parte). Usado para pegar o resto do "loot" antes de sair do alvo.
+// Extensões de vírus (configuráveis em infection2); nunca entram no "loot" automático.
+const extensoesArquivoVirus = /\.(vspam|vwarez|vddos)$/i;
+function ehArquivoVirus(nome) {
+  return extensoesArquivoVirus.test(nome);
+}
+
+// Software baixável na página atual, exceto vírus e os itens já contabilizados (por exemplo, o
+// arquivo alvo da missão, baixado à parte). Usado para pegar o resto do "loot" antes de sair do alvo.
 function encontrarLinhasDeDownloadRestantes(itensIgnorados = []) {
   const chave = (nome, versao) => `${nome}|${versao}`;
   const ignorar = new Set(itensIgnorados.map(({ name, version }) => chave(name, version)));
@@ -90,10 +96,31 @@ function encontrarLinhasDeDownloadRestantes(itensIgnorados = []) {
     if (celulas.length < 3) continue;
     const nome = celulas[1].textContent.trim();
     const versao = celulas[2].textContent.trim();
-    if (!nome || ignorar.has(chave(nome, versao))) continue;
+    if (!nome || ehArquivoVirus(nome) || ignorar.has(chave(nome, versao))) continue;
     linhas.push({ name: nome, version: versao });
   }
   return linhas;
+}
+
+// Página /software (própria): versão atualmente instalada do mesmo nome, em qualquer versão.
+function encontrarVersaoInstaladaPorNome(nome) {
+  for (const linha of document.querySelectorAll("table.table-software tbody tr[id]")) {
+    const celulas = linha.querySelectorAll("td");
+    if (celulas.length < 3 || celulas[1].textContent.trim() !== nome) continue;
+    if (!linha.classList.contains("installed")) continue;
+    return celulas[2].textContent.trim();
+  }
+  return null;
+}
+
+// Compara versões numéricas (ex: "1.4" > "1.2"); nenhuma versão instalada sempre perde.
+function versaoEhMelhor(versaoNova, versaoInstalada) {
+  if (versaoInstalada == null) return true;
+  const nova = parseFloat(versaoNova);
+  const atual = parseFloat(versaoInstalada);
+  if (Number.isNaN(nova)) return false;
+  if (Number.isNaN(atual)) return true;
+  return nova > atual;
 }
 
 // O botão "Copy IPs" de /hdb só grava na área de transferência do sistema, inacessível ao content
