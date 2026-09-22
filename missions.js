@@ -209,7 +209,10 @@ const MISSION_STEPS = {
   await_login: {
     timeout: 120000,
     find: () => encontrarBotaoSubmitPorValor("Login"),
-    resolve: (elemento, state) => ({ next: state.stage === "hirer" ? "hirer_software" : "software" }),
+    resolve: (elemento, state) => ({
+      next: "goto_logs",
+      patch: { logsReturnStep: state.stage === "hirer" ? "hirer_software" : "software" },
+    }),
     perform: (elemento) => elemento.click(),
   },
   software: {
@@ -218,6 +221,10 @@ const MISSION_STEPS = {
     resolve: (elemento, state) => ({ next: state.missionType === "steal" ? "steal_download" : "delete_file" }),
     perform: (elemento) => elemento.click(),
   },
+  // Limpa o log após CADA ação no alvo (login, download, delete, upload) - não só uma vez no
+  // final - pra minimizar o tempo em que nosso rastro fica visível. `logsReturnStep` guarda pra
+  // onde voltar depois de limpar; quem chama goto_logs sempre define esse campo antes.
+  //
   // Prefere clicar no link relativo já presente na página (preserva o alvo conectado); só cai
   // para navegação absoluta com ip= explícito quando a página atual não tem esse link (ex: nossa
   // própria página /software, usada para reupload/upload).
@@ -250,13 +257,13 @@ const MISSION_STEPS = {
   wait_logs_clear: {
     timeout: 30000,
     find: () => (document.querySelector(".elapsed") ? null : true),
-    resolve: (elemento, state) => ({ next: state.stage === "hirer" ? "logout_hirer" : "logout" }),
+    resolve: (elemento, state) => ({ next: state.logsReturnStep, patch: { logsReturnStep: undefined } }),
     perform: () => {},
   },
   delete_file: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=del"),
-    resolve: () => ({ next: "goto_own_software_for_reupload" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "goto_own_software_for_reupload" } }),
     perform: (elemento) => elemento.click(),
     onNotFound: () => {
       const minutos = encontrarMinutosAteResetSoftware();
@@ -279,13 +286,13 @@ const MISSION_STEPS = {
   reupload_deleted_file: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=up"),
-    resolve: () => ({ next: "goto_logs" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "logout" } }),
     perform: (elemento) => elemento.click(),
   },
   steal_download: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=dl"),
-    resolve: () => ({ next: "grab_loot" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "grab_loot" } }),
     perform: (elemento) => elemento.click(),
     onNotFound: () => {
       const minutos = encontrarMinutosAteResetSoftware();
@@ -311,7 +318,10 @@ const MISSION_STEPS = {
         };
       }
       const temLoot = (state.lootDownloaded || []).length > 0;
-      return { next: temLoot ? "goto_own_software_for_loot" : "goto_logs", patch: { lootQueue: undefined } };
+      return {
+        next: temLoot ? "goto_own_software_for_loot" : "goto_logs",
+        patch: { lootQueue: undefined, logsReturnStep: temLoot ? undefined : (state.stage === "hirer" ? "logout_hirer" : "logout") },
+      };
     },
     perform: (fila) => {
       if (fila.length === 0) return;
@@ -321,11 +331,12 @@ const MISSION_STEPS = {
   },
   // Baixar software (diferente do arquivo principal, que é instantâneo) tem cronômetro real; espera
   // sumir antes de tentar o próximo item, senão o clique seguinte acha a página em transição.
+  // Depois limpa o log (uma ação = um rastro novo) antes de seguir pro próximo item.
   await_loot_download: {
     timeout: 30000,
     skipElapsedGate: true,
     find: () => (document.querySelector(".elapsed") ? null : true),
-    resolve: () => ({ next: "grab_loot" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "grab_loot" } }),
     perform: () => {},
   },
   goto_own_software_for_loot: {
@@ -347,7 +358,12 @@ const MISSION_STEPS = {
       return linha ? { linha: linha, instalada: encontrarVersaoInstaladaPorNome(fila[0].name) } : "not_found";
     },
     resolve: (resultado, state) => {
-      if (resultado === "done") return { next: "goto_logs", patch: { lootDownloaded: undefined } };
+      if (resultado === "done") {
+        return {
+          next: "goto_logs",
+          patch: { lootDownloaded: undefined, logsReturnStep: state.stage === "hirer" ? "logout_hirer" : "logout" },
+        };
+      }
       const fila = state.lootDownloaded;
       if (resultado === "not_found" || !versaoEhMelhor(fila[0].version, resultado.instalada)) {
         return { next: "install_loot", patch: { lootDownloaded: fila.slice(1) } };
@@ -430,7 +446,7 @@ const MISSION_STEPS = {
   confirm_hirer_file_deleted: {
     timeout: 15000,
     find: (state) => (encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=del") ? null : true),
-    resolve: () => ({ next: "goto_own_software" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "goto_own_software" } }),
     perform: () => {},
   },
   goto_own_software: {
@@ -444,7 +460,7 @@ const MISSION_STEPS = {
   upload_file: {
     timeout: 15000,
     find: (state) => encontrarLinkDaLinhaDoSoftware(state.fileName, state.fileVersion, "cmd=up"),
-    resolve: () => ({ next: "goto_logs" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "logout_hirer" } }),
     perform: (elemento) => elemento.click(),
   },
   logout_hirer: {

@@ -131,7 +131,7 @@ const PUZZLE_STEPS = {
   await_login: {
     timeout: 120000,
     find: () => encontrarBotaoSubmitPorValor("Login"),
-    resolve: () => ({ next: "goto_software" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "goto_software" } }),
     perform: (elemento) => elemento.click(),
   },
   goto_software: {
@@ -143,7 +143,10 @@ const PUZZLE_STEPS = {
   find_crc: {
     timeout: 15000,
     find: () => encontrarLinhaCRC(),
-    resolve: (resultadoEncontrado) => ({ next: "grab_puzzle_loot", patch: { crcFileName: resultadoEncontrado.name, crcFileVersion: resultadoEncontrado.version } }),
+    resolve: (resultadoEncontrado) => ({
+      next: "goto_logs",
+      patch: { crcFileName: resultadoEncontrado.name, crcFileVersion: resultadoEncontrado.version, logsReturnStep: "grab_puzzle_loot" },
+    }),
     perform: (resultadoEncontrado) => resultadoEncontrado.dlLink.click(),
   },
   // Ainda conectados ao alvo: aproveita para baixar qualquer outro software (exceto vírus)
@@ -169,11 +172,12 @@ const PUZZLE_STEPS = {
   },
   // Baixar software (diferente do .crc, que é instantâneo) tem cronômetro real; espera sumir antes
   // de tentar o próximo item, senão o clique seguinte acha a página em transição.
+  // Depois limpa o log (uma ação = um rastro novo) antes de seguir pro próximo item.
   await_puzzle_loot_download: {
     timeout: 30000,
     skipElapsedGate: true,
     find: () => (document.querySelector(".elapsed") ? null : true),
-    resolve: () => ({ next: "grab_puzzle_loot" }),
+    resolve: () => ({ next: "goto_logs", patch: { logsReturnStep: "grab_puzzle_loot" } }),
     perform: () => {},
   },
   await_download: {
@@ -351,11 +355,15 @@ const PUZZLE_STEPS = {
     find: encontrarProximoIpPuzzle,
     resolve: (endereco, estado) => ({
       next: "goto_logs",
-      patch: { nextIp: endereco, puzzleNumber: estado.puzzleNumber + 1 },
+      patch: { nextIp: endereco, puzzleNumber: estado.puzzleNumber + 1, logsReturnStep: "logout" },
       complete: true,
     }),
     perform: () => {},
   },
+  // Limpa o log após CADA ação no alvo (login, download) - não só uma vez no final - pra
+  // minimizar o tempo em que nosso rastro fica visível. `logsReturnStep` guarda pra onde voltar
+  // depois de limpar; quem chama goto_logs sempre define esse campo antes.
+  //
   // Prefere clicar no link relativo já presente na página (preserva o alvo conectado); só cai
   // para navegação absoluta com ip= explícito quando a página atual não tem esse link (ex: após
   // resolver um mini-jogo/riddle).
@@ -387,7 +395,7 @@ const PUZZLE_STEPS = {
   wait_logs_clear: {
     timeout: 30000,
     find: () => (document.querySelector(".elapsed") ? null : true),
-    resolve: () => ({ next: "logout" }),
+    resolve: (elemento, estado) => ({ next: estado.logsReturnStep, patch: { logsReturnStep: undefined } }),
     perform: () => {},
   },
   logout: {
