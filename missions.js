@@ -218,19 +218,23 @@ const MISSION_STEPS = {
     resolve: (elemento, state) => ({ next: state.missionType === "steal" ? "steal_download" : "delete_file" }),
     perform: (elemento) => elemento.click(),
   },
-  // Navegação absoluta (não um clique relativo): esta etapa às vezes é alcançada a partir da nossa
-  // própria página /software, que não tem um link "?view=logs" para o alvo conectado.
+  // Prefere clicar no link relativo já presente na página (preserva o alvo conectado); só cai
+  // para navegação absoluta com ip= explícito quando a página atual não tem esse link (ex: nossa
+  // própria página /software, usada para reupload/upload).
   goto_logs: {
     timeout: 15000,
     skipElapsedGate: true,
-    find: () => document.body,
+    find: () => document.querySelector('a[href="?view=logs"]') || true,
     resolve: () => ({ next: "clear_logs" }),
-    perform: () => {
-      location.href = "https://hackerwars.io/internet?view=logs";
+    perform: (encontrado, estado) => {
+      if (encontrado !== true) return encontrado.click();
+      const ip = estado.stage === "hirer" ? estado.hirerIp : estado.victimIp;
+      location.href = `https://hackerwars.io/internet?ip=${ip}&view=logs`;
     },
   },
   clear_logs: {
     timeout: 15000,
+    skipElapsedGate: true,
     find: () => {
       const textarea = obterTextareaDoLog();
       const botao = obterBotaoEditarLog();
@@ -294,17 +298,76 @@ const MISSION_STEPS = {
     },
   },
   // Já estamos logados no alvo prestes a ter o log limpo; aproveita para baixar qualquer outro
-  // software disponível ali, um por vez, antes de sair.
+  // software (exceto vírus) disponível ali, um por vez, antes de sair.
   grab_loot: {
     timeout: 15000,
     find: (state) => state.lootQueue || encontrarLinhasDeDownloadRestantes([{ name: state.fileName, version: state.fileVersion }]),
-    resolve: (fila) =>
-      fila.length > 0 ? { next: "grab_loot", patch: { lootQueue: fila.slice(1) } } : { next: "goto_logs", patch: { lootQueue: undefined } },
+    resolve: (fila, state) => {
+      if (fila.length > 0) {
+        return { next: "grab_loot", patch: { lootQueue: fila.slice(1), lootDownloaded: [...(state.lootDownloaded || []), fila[0]] } };
+      }
+      const temLoot = (state.lootDownloaded || []).length > 0;
+      return { next: temLoot ? "goto_own_software_for_loot" : "goto_logs", patch: { lootQueue: undefined } };
+    },
     perform: (fila) => {
       if (fila.length === 0) return;
       const link = encontrarLinkDaLinhaDoSoftware(fila[0].name, fila[0].version, "cmd=dl");
       if (link) link.click();
     },
+  },
+  goto_own_software_for_loot: {
+    timeout: 15000,
+    find: () => document.body,
+    resolve: () => ({ next: "install_loot" }),
+    perform: () => {
+      location.href = "https://hackerwars.io/software";
+    },
+  },
+  // Instala cada item baixado só se for melhor que a versão já instalada (mesmo nome), apagando a
+  // antiga depois — mesma regra de "1 versão instalada por tipo" usada no CRC dos puzzles.
+  install_loot: {
+    timeout: 15000,
+    find: (state) => {
+      const fila = state.lootDownloaded || [];
+      if (fila.length === 0) return "done";
+      const linha = encontrarLinhaDoSoftware(fila[0].name, fila[0].version);
+      return linha ? { linha: linha, instalada: encontrarVersaoInstaladaPorNome(fila[0].name) } : "not_found";
+    },
+    resolve: (resultado, state) => {
+      if (resultado === "done") return { next: "goto_logs", patch: { lootDownloaded: undefined } };
+      const fila = state.lootDownloaded;
+      if (resultado === "not_found" || !versaoEhMelhor(fila[0].version, resultado.instalada)) {
+        return { next: "install_loot", patch: { lootDownloaded: fila.slice(1) } };
+      }
+      return { next: "await_loot_install", patch: { lootInstallOldVersion: resultado.instalada } };
+    },
+    perform: (resultado) => {
+      if (resultado === "done" || resultado === "not_found") return;
+      resultado.linha.querySelector('a[href*="action=install"]')?.click();
+    },
+  },
+  await_loot_install: {
+    timeout: 60000,
+    find: (state) => {
+      const linha = encontrarLinhaDoSoftware(state.lootDownloaded[0].name, state.lootDownloaded[0].version);
+      return linha && linha.classList.contains("installed") ? true : null;
+    },
+    resolve: (found, state) => {
+      const item = state.lootDownloaded[0];
+      const versaoAntiga = state.lootInstallOldVersion;
+      if (versaoAntiga != null && versaoAntiga !== item.version) return { next: "delete_old_loot" };
+      return { next: "install_loot", patch: { lootDownloaded: state.lootDownloaded.slice(1), lootInstallOldVersion: undefined } };
+    },
+    perform: () => {},
+  },
+  delete_old_loot: {
+    timeout: 15000,
+    find: (state) => encontrarLinkDaLinhaDoSoftware(state.lootDownloaded[0].name, state.lootInstallOldVersion, "action=del"),
+    resolve: (elemento, state) => ({
+      next: "install_loot",
+      patch: { lootDownloaded: state.lootDownloaded.slice(1), lootInstallOldVersion: undefined },
+    }),
+    perform: (elemento) => elemento.click(),
   },
   logout: {
     timeout: 15000,
